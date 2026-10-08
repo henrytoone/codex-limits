@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "checkJs": true,
+    "noEmit": true,
+    "strict": true,
+    "maxNodeModuleJsDepth": 0,
+    "target": "ES2022",
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "types": ["node", "vscode"]
+  },
+  "include": ["src/**/*.js"],
+  "exclude": ["node_modules"]
+}
