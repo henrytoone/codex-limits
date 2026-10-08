@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.9
+
+- Include local timezone labels on reset and expiry timestamps, accounting for daylight saving at each timestamp.
+- Remove the “Expires at” prefix from banked reset expiry lines.
+
+## 0.2.8
+
+- Colour tooltip pace labels in dark-mode-friendly shades: blue for on track, green for under usage, and yellow for over usage.
+
 ## 0.2.7
 
 - Show banked resets and their local expiry dates in a separate tooltip block.

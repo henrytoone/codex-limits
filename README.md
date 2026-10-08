@@ -6,16 +6,16 @@ See your Codex ChatGPT plan usage in VS Code's bottom status bar:
 2h 45m • 61% | 5d 16h • 88%
 ```
 
-The five-hour window comes first and the weekly window second. Each shows time until reset, then the percentage **remaining**. Hover for two spaced blocks showing remaining percentage, local reset date/time and pace for each window. Labels and percentages are bold in the tooltip, with pace on its own line between the remaining percentage and reset time. Click to refresh immediately. The bar highlights when either quota has 10% or less remaining. VS Code's supported status bar API does not provide bold text formatting.
+The five-hour window comes first and the weekly window second. Each shows time until reset, then the percentage **remaining**. Hover for two spaced blocks showing remaining percentage, local reset date/time with timezone labels and pace for each window. Labels and percentages are bold in the tooltip, with pace on its own line between the remaining percentage and reset time. Click to refresh immediately. The bar highlights when either quota has 10% or less remaining. VS Code's supported status bar API does not provide bold text formatting.
 
-The tooltip also shows pace separately for each window. The elapsed percentage is calculated from the reset time and window duration. Usage within **10 percentage points** of elapsed time, including the boundaries, is **on track**. Below that band is **under usage**; above it is **over usage**. For example, halfway through a window, 40–60% used is on track. Pace updates with the countdown timer and is unavailable when the reset time is missing or already due.
+The tooltip also shows pace separately for each window. The elapsed percentage is calculated from the reset time and window duration. Usage within **10 percentage points** of elapsed time, including the boundaries, is **on track**. Below that band is **under usage**; above it is **over usage**. For example, halfway through a window, 40–60% used is on track. Pace labels use shades chosen for dark backgrounds: blue for **on track**, green for **under usage**, and yellow for **over usage**. Pace updates with the countdown timer and is unavailable when the reset time is missing or already due.
 
-A separate **Banked resets** block shows the available reset count and local expiry dates, grouping resets that expire together. Missing counts display `—`; missing dates display **Expiry unavailable**. Expiries are read from the service, never guessed from grant times.
+A separate **Banked resets** block shows the available reset count and local expiry dates with timezone labels, grouping resets that expire together. Missing counts display `—`; missing dates display **Expiry unavailable**. Expiry lines show the timestamp directly. Timezone labels follow the local timezone and daylight saving at each reset or expiry date. Expiries are read from the service, never guessed from grant times.
 
 ## Install
 
 1. Install the official **Codex – OpenAI's coding agent** extension (`openai.chatgpt`) and sign in with ChatGPT.
-2. In VS Code, run **Extensions: Install from VSIX…** from the Command Palette and select `codex-limits-0.2.7.vsix` from this folder. This upgrades earlier versions if already installed.
+2. In VS Code, run **Extensions: Install from VSIX…** from the Command Palette and select `codex-limits-0.2.9.vsix` from this folder. This upgrades earlier versions if already installed.
 3. Reload the VS Code window if prompted. The status bar appears automatically.
 
 The package is for local installation; it has not been published to the Marketplace.

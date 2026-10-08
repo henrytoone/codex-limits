@@ -86,7 +86,6 @@ function fetchJson(url, auth, options) {
       const headers = {
         Accept: 'application/json',
         Authorization: `Bearer ${auth.accessToken}`,
-        'User-Agent': 'codex-limits-vscode/0.2.7',
         ...(auth.accountId ? { 'chatgpt-account-id': auth.accountId } : {}),
       };
       const request = https.request(url, { method: 'GET', headers, signal: options.signal }, response => {

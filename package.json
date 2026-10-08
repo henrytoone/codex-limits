@@ -2,7 +2,7 @@
   "name": "codex-limits",
   "displayName": "Codex Limits",
   "description": "Codex five-hour and weekly quota remaining, with live reset countdowns in the status bar.",
-  "version": "0.2.7",
+  "version": "0.2.9",
   "publisher": "henry-local",
   "license": "MIT",
   "engines": {
@@ -34,7 +34,7 @@
     "test": "node --test test/*.test.js",
     "check": "tsc --project jsconfig.json",
     "vscode:prepublish": "npm run check",
-    "package": "vsce package --no-dependencies --allow-missing-repository --out codex-limits-0.2.7.vsix",
+    "package": "vsce package --no-dependencies --allow-missing-repository --out codex-limits-0.2.9.vsix",
     "verify:live": "node scripts/verify-live.js"
   },
   "devDependencies": {

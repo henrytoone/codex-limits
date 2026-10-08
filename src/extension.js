@@ -3,13 +3,19 @@ const vscode = require('vscode');
 const { readAuth, fetchUsage, fetchResetCredits, UsageError } = require('./usage');
 const { parseLimits, parseBankedResets, statusText, remaining, usagePace } = require('./limits');
 
+const paceColors = {
+  'on track': '#75beff',
+  'under usage': '#89d185',
+  'over usage': '#e5c07b',
+};
+
 const resetDateFormat = new Intl.DateTimeFormat(undefined, {
   weekday: 'short', month: 'short', day: 'numeric',
-  hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+  hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZoneName: 'short',
 });
 const expiryDateFormat = new Intl.DateTimeFormat(undefined, {
   year: 'numeric', month: 'short', day: 'numeric',
-  hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+  hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZoneName: 'short',
 });
 
 class LimitsStatus {
@@ -134,6 +140,7 @@ class LimitsStatus {
     const config = vscode.workspace.getConfiguration('codexLimits');
     const stale = !!this.error || now - this.updatedAt > Math.max(120000, (this.interval ?? 60) * 2000);
     const tooltip = new vscode.MarkdownString();
+    tooltip.supportHtml = true;
     if (this.limits) {
       this.item.text = `${stale ? '$(warning) ' : ''}${statusText(this.limits, now, config.get('showWeeklyReset', true))}${stale ? ' (stale)' : ''}`;
       for (const [label, w, durationMins] of /** @type {[string, import('./limits').Window|null, number][]} */ ([['5h', this.limits.fiveHour, 300], ['Weekly', this.limits.weekly, 10080]])) {
@@ -142,7 +149,7 @@ class LimitsStatus {
         const pace = usagePace(w, now, durationMins);
         const balance = due ? '—' : `${Number(remaining(w).toFixed(1))}%`;
         tooltip.appendMarkdown(`**${label}**  **${due ? '—' : `${balance} left`}**  \n`);
-        tooltip.appendMarkdown(`${pace?.label ?? '—'}  \n`);
+        tooltip.appendMarkdown(`${pace ? `<span style="color:${paceColors[pace.label]};">${pace.label}</span>` : '—'}  \n`);
         tooltip.appendMarkdown(`Reset at ${w.resetsAt === null ? '—' : resetDateFormat.format(new Date(w.resetsAt * 1000))}\n\n`);
       }
       const banked = this.limits.bankedResets;
@@ -155,7 +162,7 @@ class LimitsStatus {
         let known = 0;
         for (const [expiry, count] of [...dates.entries()].sort(([a], [b]) => a - b)) {
           known += count;
-          tooltip.appendMarkdown(`  \nExpires at ${expiryDateFormat.format(new Date(expiry * 1000))}${count > 1 ? ` (${count} resets)` : ''}`);
+          tooltip.appendMarkdown(`  \n${expiryDateFormat.format(new Date(expiry * 1000))}${count > 1 ? ` (${count} resets)` : ''}`);
         }
         if (known < banked.availableCount) tooltip.appendMarkdown(`  \n${known ? 'Other expiries unavailable' : 'Expiry unavailable'}`);
       }

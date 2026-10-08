@@ -95,10 +95,11 @@ test('shows banked count and each expiry in order using a read-only detail reque
     { status: 'available', expires_at: first },
   ] };
   await settle();
-  const format = new Intl.DateTimeFormat(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+  const format = new Intl.DateTimeFormat(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZoneName: 'short' });
   const firstDate = format.format(new Date(first * 1000));
   const secondDate = format.format(new Date(second * 1000));
-  assert.ok(c.item.tooltip.value.includes(`**Banked resets**  **3**  \nExpires at ${firstDate} (2 resets)  \nExpires at ${secondDate}`));
+  assert.ok(c.item.tooltip.value.includes(`**Banked resets**  **3**  \n${firstDate} (2 resets)  \n${secondDate}`));
+  assert.doesNotMatch(c.item.tooltip.value, /Expires at/);
   assert.equal(requests, 1);
   assert.equal(resetRequests, 1);
   assert.doesNotMatch(c.item.text, /Banked/);
@@ -106,7 +107,7 @@ test('shows banked count and each expiry in order using a read-only detail reque
   auth.fingerprint = 'different-account';
   usageError = new UsageError('network');
   await commands.get('codexLimits.refresh')();
-  assert.doesNotMatch(c.item.tooltip.value, /Banked resets|Expires at/);
+  assert.doesNotMatch(c.item.tooltip.value, /Banked resets/);
 });
 
 test('keeps quotas and banked count when details fail, respecting detail Retry-After', async t => {
@@ -138,9 +139,17 @@ test('shows remaining quota, countdowns and warning tooltip', async t => {
   assert.match(c.item.text, /^[0-9]+h [0-9]+m • 72% \|/);
   assert.match(c.item.text, /\| [0-9]+d [0-9]+h • 5%$/);
   assert.equal(c.item.backgroundColor.id, 'statusBarItem.warningBackground');
-  assert.match(c.item.tooltip.value, /\*\*5h\*\*  \*\*72% left\*\*  \nunder usage  \nReset at [^\n]+\d{2}:\d{2}[^\n]*\n\n/);
-  assert.match(c.item.tooltip.value, /\*\*Weekly\*\*  \*\*5% left\*\*  \nover usage  \nReset at [^\n]+\d{2}:\d{2}[^\n]*\n\n/);
+  assert.equal(c.item.tooltip.supportHtml, true);
+  assert.match(c.item.tooltip.value, /\*\*5h\*\*  \*\*72% left\*\*  \n<span style="color:#89d185;">under usage<\/span>  \nReset at [^\n]+\d{2}:\d{2}[^\n]*\n\n/);
+  assert.match(c.item.tooltip.value, /\*\*Weekly\*\*  \*\*5% left\*\*  \n<span style="color:#e5c07b;">over usage<\/span>  \nReset at [^\n]+\d{2}:\d{2}[^\n]*\n\n/);
+  const resetFormat = new Intl.DateTimeFormat(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZoneName: 'short' });
+  for (const window of [usage.rate_limit.primary_window, usage.rate_limit.secondary_window]) {
+    assert.ok(c.item.tooltip.value.includes(`Reset at ${resetFormat.format(new Date(window.reset_at * 1000))}\n\n`));
+  }
   assert.equal(requests, 1);
+  usage.rate_limit.primary_window.used_percent = 55;
+  await commands.get('codexLimits.refresh')();
+  assert.match(c.item.tooltip.value, /<span style="color:#75beff;">on track<\/span>/);
 });
 
 test('network failure flags stale data and logs no raw errors', async t => {
