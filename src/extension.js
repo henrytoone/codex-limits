@@ -146,7 +146,9 @@ class LimitsStatus {
       for (const [label, w, durationMins] of /** @type {[string, import('./limits').Window|null, number][]} */ ([['5h', this.limits.fiveHour, 300], ['Weekly', this.limits.weekly, 10080]])) {
         if (!w) { tooltip.appendMarkdown(`**${label}**  Unavailable\n\n`); continue; }
         const due = w.resetsAt !== null && w.resetsAt * 1000 <= now;
-        const pace = usagePace(w, now, durationMins);
+        const pace = usagePace(w, now, durationMins,
+          config.get('underUsageThresholdPercentagePoints', 10),
+          config.get('overUsageThresholdPercentagePoints', 10));
         const balance = due ? '—' : `${Number(remaining(w).toFixed(1))}%`;
         tooltip.appendMarkdown(`**${label}**  **${due ? '—' : `${balance} left`}**  \n`);
         tooltip.appendMarkdown(`${pace ? `<span style="color:${paceColors[pace.label]};">${pace.label}</span>` : '—'}  \n`);
@@ -198,7 +200,9 @@ function activate(context) {
     vscode.commands.registerCommand('codexLimits.openCodex', () => vscode.commands.executeCommand('chatgpt.openSidebar')),
     vscode.commands.registerCommand('codexLimits.showOutput', () => status.output.show()),
     vscode.workspace.onDidChangeConfiguration(event => {
-      if (event.affectsConfiguration('codexLimits')) status.configure();
+      if (!event.affectsConfiguration('codexLimits')) return;
+      if (event.affectsConfiguration('codexLimits.codexHome') || event.affectsConfiguration('codexLimits.refreshIntervalSeconds')) status.configure();
+      else status.render();
     }),
     vscode.window.onDidChangeWindowState(state => { if (state.focused) void status.refresh(); }),
   );

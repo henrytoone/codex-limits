@@ -43,6 +43,25 @@ test('weekly pace uses elapsed time across the whole week and advances with time
   assert.ok(Math.abs(later.elapsedPercent - 55) < 1e-9);
 });
 
+test('custom asymmetric pace thresholds include both boundaries for either window', () => {
+  for (const duration of [300, 10080]) {
+    for (const [usedPercent, expected] of [[34.9, 'under usage'], [35, 'on track'], [50, 'on track'], [55, 'on track'], [55.1, 'over usage']]) {
+      const w = { usedPercent, windowDurationMins: duration, resetsAt: now / 1000 + duration * 30 };
+      assert.equal(usagePace(w, now, duration, 15, 5).label, expected);
+    }
+  }
+});
+
+test('pace thresholds accept zero and fractions and handle invalid values safely', () => {
+  const w = { usedPercent: 50, windowDurationMins: 300, resetsAt: now / 1000 + 150 * 60 };
+  assert.equal(usagePace(w, now, 300, 0, 0).label, 'on track');
+  assert.equal(usagePace({ ...w, usedPercent: 49.9 }, now, 300, 0, 0).label, 'under usage');
+  assert.equal(usagePace({ ...w, usedPercent: 50.1 }, now, 300, 0, 0).label, 'over usage');
+  assert.equal(usagePace({ ...w, usedPercent: 50.5 }, now, 300, 0.5, 0.5).label, 'on track');
+  assert.equal(usagePace({ ...w, usedPercent: 40 }, now, 300, NaN, Infinity).label, 'on track');
+  assert.equal(usagePace({ ...w, usedPercent: 49 }, now, 300, -5, -5).label, 'under usage');
+});
+
 test('pace handles missing metadata and never classifies a reset that is due', () => {
   const w = { usedPercent: 20, windowDurationMins: null, resetsAt: now / 1000 + 150 * 60 };
   assert.deepEqual(usagePace(w, now, 300), { label: 'under usage', elapsedPercent: 50 });

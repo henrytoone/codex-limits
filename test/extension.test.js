@@ -152,6 +152,20 @@ test('shows remaining quota, countdowns and warning tooltip', async t => {
   assert.match(c.item.tooltip.value, /<span style="color:#75beff;">on track<\/span>/);
 });
 
+test('pace threshold settings update both tooltip windows immediately without HTTP requests', async t => {
+  const c = fixture(t); await settle();
+  settings.set('codexLimits.underUsageThresholdPercentagePoints', 30);
+  settings.set('codexLimits.overUsageThresholdPercentagePoints', 20);
+  configListener({ affectsConfiguration: key => ['codexLimits', 'codexLimits.underUsageThresholdPercentagePoints', 'codexLimits.overUsageThresholdPercentagePoints'].includes(key) });
+  assert.equal((c.item.tooltip.value.match(/>on track<\/span>/g) ?? []).length, 2);
+  settings.set('codexLimits.underUsageThresholdPercentagePoints', 0);
+  settings.set('codexLimits.overUsageThresholdPercentagePoints', 0);
+  configListener({ affectsConfiguration: key => ['codexLimits', 'codexLimits.underUsageThresholdPercentagePoints', 'codexLimits.overUsageThresholdPercentagePoints'].includes(key) });
+  assert.match(c.item.tooltip.value, /color:#89d185;">under usage/);
+  assert.match(c.item.tooltip.value, /color:#e5c07b;">over usage/);
+  assert.equal(requests, 1);
+});
+
 test('network failure flags stale data and logs no raw errors', async t => {
   const c = fixture(t); await settle();
   usageError = new Error('secret-fixture-token-error');
@@ -225,7 +239,7 @@ test('polling defaults to 60 seconds and respects a changed interval immediately
   await c.refresh();
   assert.equal(requests, 2);
   settings.set('codexLimits.refreshIntervalSeconds', 120);
-  configListener({ affectsConfiguration: key => key === 'codexLimits' });
+  configListener({ affectsConfiguration: key => key === 'codexLimits' || key === 'codexLimits.refreshIntervalSeconds' });
   await settle();
   assert.equal(c.interval, 120);
   assert.equal(requests, 3);

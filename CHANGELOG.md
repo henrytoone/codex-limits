@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.10
+
+- Add separate configurable under-usage and over-usage thresholds, defaulting to 10 percentage points each for both windows. Boundary values remain on track.
+- Apply tooltip and status presentation settings immediately without requesting fresh usage data.
+
 ## 0.2.9
 
 - Include local timezone labels on reset and expiry timestamps, accounting for daylight saving at each timestamp.

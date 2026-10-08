@@ -65,17 +65,20 @@ function parseBankedResets(result, details) {
 /** @param {Window} window */
 function remaining(window) { return 100 - window.usedPercent; }
 
-/** Compare quota spent against elapsed time, using an inclusive 10-point band.
+/** Compare quota spent against elapsed time, with inclusive configurable bounds.
  * @param {Window} window @param {number} now @param {number} fallbackDurationMins
+ * @param {number} [underThreshold] @param {number} [overThreshold]
  * @returns {{label: 'under usage'|'on track'|'over usage', elapsedPercent: number}|null} */
-function usagePace(window, now, fallbackDurationMins) {
+function usagePace(window, now, fallbackDurationMins, underThreshold = 10, overThreshold = 10) {
   const durationMs = (window.windowDurationMins ?? fallbackDurationMins) * 60000;
   if (!Number.isFinite(durationMs) || durationMs <= 0 || window.resetsAt === null) return null;
   const resetMs = window.resetsAt * 1000;
   if (!Number.isFinite(resetMs) || resetMs <= now) return null;
   const elapsedPercent = Math.min(100, Math.max(0, (now - (resetMs - durationMs)) / durationMs * 100));
   const difference = window.usedPercent - elapsedPercent;
-  const label = Math.abs(difference) <= 10 + 1e-9 ? 'on track' : difference < 0 ? 'under usage' : 'over usage';
+  const under = Number.isFinite(underThreshold) ? Math.min(100, Math.max(0, underThreshold)) : 10;
+  const over = Number.isFinite(overThreshold) ? Math.min(100, Math.max(0, overThreshold)) : 10;
+  const label = difference < -under - 1e-9 ? 'under usage' : difference > over + 1e-9 ? 'over usage' : 'on track';
   return { label, elapsedPercent };
 }
 

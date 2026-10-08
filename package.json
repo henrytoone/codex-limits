@@ -2,7 +2,7 @@
   "name": "codex-limits",
   "displayName": "Codex Limits",
   "description": "Codex five-hour and weekly quota remaining, with live reset countdowns in the status bar.",
-  "version": "0.2.9",
+  "version": "0.2.10",
   "publisher": "henry-local",
   "license": "MIT",
   "engines": {
@@ -34,7 +34,7 @@
     "test": "node --test test/*.test.js",
     "check": "tsc --project jsconfig.json",
     "vscode:prepublish": "npm run check",
-    "package": "vsce package --no-dependencies --allow-missing-repository --out codex-limits-0.2.9.vsix",
+    "package": "vsce package --no-dependencies --allow-missing-repository --out codex-limits-0.2.10.vsix",
     "verify:live": "node scripts/verify-live.js"
   },
   "devDependencies": {
@@ -88,7 +88,23 @@
           "minimum": 0,
           "maximum": 100,
           "scope": "application",
-          "description": "Highlight the status bar when either window has this percentage or less remaining."
+          "description": "Highlight the status bar when either usage limit window has this percentage or less remaining."
+        },
+        "codexLimits.underUsageThresholdPercentagePoints": {
+          "type": "number",
+          "default": 10,
+          "minimum": 0,
+          "maximum": 100,
+          "scope": "application",
+          "description": "How many percentage points, above the percent time left in this usage limit, are considered under usage."
+        },
+        "codexLimits.overUsageThresholdPercentagePoints": {
+          "type": "number",
+          "default": 10,
+          "minimum": 0,
+          "maximum": 100,
+          "scope": "application",
+          "description": "How many percentage points, below the percent time left in this usage limit, are considered over usage."
         }
       }
     }
