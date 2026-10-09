@@ -2,7 +2,7 @@
   "name": "codex-limits",
   "displayName": "Codex Limits",
   "description": "Codex five-hour and weekly quota remaining, with live reset countdowns in the status bar.",
-  "version": "0.2.10",
+  "version": "0.2.11",
   "publisher": "henry-local",
   "license": "MIT",
   "engines": {
@@ -19,7 +19,8 @@
   ],
   "main": "./src/extension.js",
   "extensionKind": [
-    "ui"
+    "ui",
+    "workspace"
   ],
   "activationEvents": [
     "onStartupFinished"
@@ -34,7 +35,7 @@
     "test": "node --test test/*.test.js",
     "check": "tsc --project jsconfig.json",
     "vscode:prepublish": "npm run check",
-    "package": "vsce package --no-dependencies --allow-missing-repository --out codex-limits-0.2.10.vsix",
+    "package": "vsce package --no-dependencies --allow-missing-repository --out codex-limits-0.2.11.vsix",
     "verify:live": "node scripts/verify-live.js"
   },
   "devDependencies": {
@@ -80,7 +81,7 @@
           "default": "",
           "scope": "application",
           "restricted": true,
-          "description": "Optional absolute path to the directory containing Codex auth.json. Defaults to CODEX_HOME or ~/.codex. Credentials are read only; this extension never renews or writes them."
+          "description": "Optional absolute path to the directory containing Codex auth.json. Defaults to CODEX_HOME or ~/.codex. Credentials are read only; this extension never renews or writes them.[...]"
         },
         "codexLimits.warningThresholdPercent": {
           "type": "number",
