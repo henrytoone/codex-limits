@@ -19,6 +19,8 @@ let reads;
 let requests;
 let configListener;
 const logs = [];
+const animations = [];
+let canAnimate;
 const disposable = () => ({ dispose() {} });
 const vscode = {
   StatusBarAlignment: { Right: 2 },
@@ -29,11 +31,15 @@ const vscode = {
     appendMarkdown(text) { this.value += text; return this; }
   },
   window: {
+    state: { focused: true },
+    onDidChangeActiveTextEditor: disposable,
+    onDidChangeTextEditorVisibleRanges: disposable,
     createStatusBarItem: () => ({ text: '', visible: false, show() { this.visible = true; }, dispose() { this.visible = false; } }),
     createOutputChannel: () => ({ appendLine(line) { logs.push(line); }, show() {}, dispose() {} }),
     onDidChangeWindowState: disposable,
   },
   workspace: {
+    onDidChangeTextDocument: disposable,
     getConfiguration: section => ({ get(key, fallback) { return settings.get(`${section}.${key}`) ?? fallback; } }),
     onDidChangeConfiguration(listener) { configListener = listener; return disposable(); },
   },
@@ -47,6 +53,10 @@ let activate;
 try {
   Module._load = function (request, parent, isMain) {
     if (request === 'vscode') return vscode;
+    if (request === './car' && parent?.filename.endsWith('/src/extension.js')) return {
+      ...originalLoad.call(this, request, parent, isMain),
+      playResetAnimation() { animations.push(Date.now()); return canAnimate; },
+    };
     if (request === './usage' && parent?.filename.endsWith('/src/extension.js')) return {
       UsageError,
       async fetchResetCredits() { resetRequests++; if (resetDetailsError) throw resetDetailsError; return resetDetails; },
@@ -68,6 +78,7 @@ try {
 
 function fixture(t) {
   settings.clear(); logs.length = 0; reads = 0; requests = 0;
+  animations.length = 0; canAnimate = false; vscode.window.state.focused = true;
   resetRequests = 0; resetDetails = null; resetDetailsError = null;
   auth = { accessToken: 'fixture-token', accountId: 'fixture-account', fingerprint: 'fixture-a' };
   authError = usageError = pendingRequest = null;
@@ -140,8 +151,8 @@ test('shows remaining quota, countdowns and warning tooltip', async t => {
   assert.match(c.item.text, /\| [0-9]+d [0-9]+h • 5%$/);
   assert.equal(c.item.backgroundColor.id, 'statusBarItem.warningBackground');
   assert.equal(c.item.tooltip.supportHtml, true);
-  assert.match(c.item.tooltip.value, /\*\*5h\*\*  \*\*72% left\*\*  \n<span style="color:#89d185;">under usage<\/span>  \nReset at [^\n]+\d{2}:\d{2}[^\n]*\n\n/);
-  assert.match(c.item.tooltip.value, /\*\*Weekly\*\*  \*\*5% left\*\*  \n<span style="color:#e5c07b;">over usage<\/span>  \nReset at [^\n]+\d{2}:\d{2}[^\n]*\n\n/);
+  assert.match(c.item.tooltip.value, /\*\*5h\*\*  \*\*72% left\*\*  \n<span style="color:#89d185;">under usage<\/span> \(44\.4%\)  \nReset at [^\n]+\d{2}:\d{2}[^\n]*\n\n/);
+  assert.match(c.item.tooltip.value, /\*\*Weekly\*\*  \*\*5% left\*\*  \n<span style="color:#e5c07b;">over usage<\/span> \(16\.5%\)  \nReset at [^\n]+\d{2}:\d{2}[^\n]*\n\n/);
   const resetFormat = new Intl.DateTimeFormat(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZoneName: 'short' });
   for (const window of [usage.rate_limit.primary_window, usage.rate_limit.secondary_window]) {
     assert.ok(c.item.tooltip.value.includes(`Reset at ${resetFormat.format(new Date(window.reset_at * 1000))}\n\n`));
@@ -257,6 +268,74 @@ test('configuration updates weekly display without any backend process', async t
   configListener({ affectsConfiguration: key => key === 'codexLimits' });
   await settle();
   assert.equal(c.item.text.split('|')[1].trim(), '5%');
+});
+
+test('manual test command previews the reset animation without requesting usage', async t => {
+  fixture(t); await settle();
+  assert.equal(typeof commands.get('codexLimits.testDriveCar'), 'function');
+  assert.equal(commands.get('codexLimits.testDriveCar')(), false); // No active code editor in this fixture.
+  canAnimate = true;
+  assert.equal(commands.get('codexLimits.testDriveCar')(), true);
+  assert.equal(animations.length, 2);
+  assert.equal(requests, 1);
+});
+
+test('reset warnings trigger for either window once per reset and combine simultaneous windows', async t => {
+  t.mock.timers.enable({ apis: ['Date'], now: 1000000 });
+  const c = fixture(t); await settle(); canAnimate = true;
+  c.limits.fiveHour.resetsAt = Date.now() / 1000 + 1801;
+  c.render(); assert.equal(animations.length, 0);
+  t.mock.timers.tick(1000); c.render(); assert.equal(animations.length, 1);
+  c.render(); c.render(); assert.equal(animations.length, 1);
+  c.limits.weekly.resetsAt = Date.now() / 1000 + 1800;
+  c.render(); assert.equal(animations.length, 2);
+  c.limits.fiveHour.resetsAt += 1; c.limits.weekly.resetsAt += 1;
+  t.mock.timers.tick(1000); c.render(); assert.equal(animations.length, 3);
+  c.render(); assert.equal(animations.length, 3);
+});
+
+test('reset warnings respect configuration, focus, stale data and missing editors without losing pending warnings', async t => {
+  t.mock.timers.enable({ apis: ['Date'], now: 1000000 });
+  const c = fixture(t); await settle();
+  c.limits.weekly.resetsAt = Date.now() / 1000 + 2400;
+  c.render(); assert.equal(animations.length, 0);
+  settings.set('codexLimits.resetAnimationMinutes', 0); c.render(); assert.equal(animations.length, 0);
+  settings.set('codexLimits.resetAnimationMinutes', 45);
+  vscode.window.state.focused = false; c.render(); assert.equal(animations.length, 0);
+  vscode.window.state.focused = true;
+  c.error = 'Network unavailable'; c.render(); assert.equal(animations.length, 0);
+  c.error = ''; c.updatedAt = Date.now() - 120001; c.render(); assert.equal(animations.length, 0);
+  c.updatedAt = Date.now(); c.render(); assert.equal(animations.length, 1);
+  assert.equal(c.warnedResets.size, 0);
+  canAnimate = true; c.render(); assert.equal(animations.length, 2);
+  c.render(); assert.equal(animations.length, 2);
+  assert.equal(requests, 1);
+  c.limits.fiveHour.resetsAt = null;
+  c.limits.weekly.resetsAt = Date.now() / 1000;
+  c.render(); assert.equal(animations.length, 2);
+});
+
+test('reset warning deduplication survives polling changes and token renewal but resets when the account changes', async t => {
+  const c = fixture(t); await settle(); canAnimate = true;
+  usage.rate_limit.primary_window.reset_at = Date.now() / 1000 + 1200;
+  await c.refresh(true); assert.equal(animations.length, 1);
+  auth.fingerprint = 'renewed-token'; await c.refresh(true); assert.equal(animations.length, 1);
+  c.configure(); await settle(); assert.equal(animations.length, 1);
+  auth.accountId = 'other-account'; await c.refresh(true); assert.equal(animations.length, 2);
+});
+
+test('animation setting applies immediately without polling and leaves eligible warnings pending while disabled', async t => {
+  const c = fixture(t); await settle(); canAnimate = true;
+  c.limits.fiveHour.resetsAt = Date.now() / 1000 + 1200;
+  settings.set('codexLimits.animationEnabled', false);
+  configListener({ affectsConfiguration: key => key === 'codexLimits' || key === 'codexLimits.animationEnabled' });
+  assert.equal(animations.length, 0);
+  assert.equal(c.warnedResets.size, 0);
+  assert.equal(requests, 1);
+  settings.set('codexLimits.animationEnabled', true);
+  configListener({ affectsConfiguration: key => key === 'codexLimits' || key === 'codexLimits.animationEnabled' });
+  assert.equal(animations.length, 1);
+  assert.equal(requests, 1);
 });
 
 test('refreshes cannot overlap and unload cancels the HTTP request', async t => {

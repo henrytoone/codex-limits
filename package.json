@@ -2,7 +2,7 @@
   "name": "codex-limits",
   "displayName": "Codex Limits",
   "description": "Codex five-hour and weekly quota remaining, with live reset countdowns in the status bar.",
-  "version": "0.2.11",
+  "version": "0.2.18",
   "publisher": "henry-local",
   "license": "MIT",
   "engines": {
@@ -35,7 +35,7 @@
     "test": "node --test test/*.test.js",
     "check": "tsc --project jsconfig.json",
     "vscode:prepublish": "npm run check",
-    "package": "vsce package --no-dependencies --allow-missing-repository --out codex-limits-0.2.11.vsix",
+    "package": "vsce package --no-dependencies --allow-missing-repository --out codex-limits-0.2.18.vsix",
     "verify:live": "node scripts/verify-live.js"
   },
   "devDependencies": {
@@ -57,6 +57,10 @@
       {
         "command": "codexLimits.showOutput",
         "title": "Codex Limits: Show Diagnostics"
+      },
+      {
+        "command": "codexLimits.testDriveCar",
+        "title": "Codex Limits: Test Drive Car"
       }
     ],
     "configuration": {
@@ -106,6 +110,20 @@
           "maximum": 100,
           "scope": "application",
           "description": "How many percentage points, below the percent time left in this usage limit, are considered over usage."
+        },
+        "codexLimits.resetAnimationMinutes": {
+          "type": "number",
+          "default": 30,
+          "minimum": 0,
+          "maximum": 10080,
+          "scope": "application",
+          "description": "Play a six-second shaking bell and three-car animation once when either usage window has this many minutes or less until reset. Set to 0 to disable automatic warnings. The manual test command remains available."
+        },
+        "codexLimits.animationEnabled": {
+          "type": "boolean",
+          "default": true,
+          "scope": "application",
+          "description": "Enable editor animations. Turning this off immediately stops any active animation and disables automatic reset warnings, the manual test command, and programmatic animation triggers."
         }
       }
     }

@@ -2,6 +2,7 @@
 const vscode = require('vscode');
 const { readAuth, fetchUsage, fetchResetCredits, UsageError } = require('./usage');
 const { parseLimits, parseBankedResets, statusText, remaining, usagePace } = require('./limits');
+const { driveCar, playResetAnimation, initializeCarAnimation } = require('./car');
 
 const paceColors = {
   'on track': '#75beff',
@@ -39,6 +40,9 @@ class LimitsStatus {
     this.nextRefreshAt = 0;
     this.rateLimitedUntil = 0;
     this.resetDetailsRetryAt = 0;
+    /** @type {Map<string, number>} */
+    this.warnedResets = new Map();
+    this.warningAccount = '';
     this.tick = setInterval(() => { this.render(); void this.refresh(); }, 15000);
     this.configure();
     this.item.show();
@@ -72,6 +76,11 @@ class LimitsStatus {
       const home = vscode.workspace.getConfiguration('codexLimits').get('codexHome', '').trim();
       const auth = await readAuth(home || undefined);
       if (generation !== this.generation || this.disposed) return;
+      const warningAccount = auth.accountId || auth.fingerprint;
+      if (warningAccount !== this.warningAccount) {
+        this.warnedResets.clear();
+        this.warningAccount = warningAccount;
+      }
       if (this.fingerprint !== auth.fingerprint) {
         this.limits = null;
         this.fingerprint = auth.fingerprint;
@@ -151,7 +160,7 @@ class LimitsStatus {
           config.get('overUsageThresholdPercentagePoints', 10));
         const balance = due ? '—' : `${Number(remaining(w).toFixed(1))}%`;
         tooltip.appendMarkdown(`**${label}**  **${due ? '—' : `${balance} left`}**  \n`);
-        tooltip.appendMarkdown(`${pace ? `<span style="color:${paceColors[pace.label]};">${pace.label}</span>` : '—'}  \n`);
+        tooltip.appendMarkdown(`${pace ? `<span style="color:${paceColors[pace.label]};">${pace.label}</span> (${Number((100 - pace.elapsedPercent).toFixed(1))}%)` : '—'}  \n`);
         tooltip.appendMarkdown(`Reset at ${w.resetsAt === null ? '—' : resetDateFormat.format(new Date(w.resetsAt * 1000))}\n\n`);
       }
       const banked = this.limits.bankedResets;
@@ -172,6 +181,7 @@ class LimitsStatus {
       if (stale) tooltip.appendMarkdown('\nLast reading is stale.\n');
       const low = [this.limits.fiveHour, this.limits.weekly].some(w => w && (w.resetsAt === null || w.resetsAt * 1000 > now) && remaining(w) <= config.get('warningThresholdPercent', 10));
       this.item.backgroundColor = low ? new vscode.ThemeColor('statusBarItem.warningBackground') : undefined;
+      if (!stale && !this.busy) this.checkResetAnimation(now);
     } else {
       this.item.text = this.busy ? '$(sync~spin) Codex limits' : '$(warning) Codex limits unavailable';
       this.item.backgroundColor = undefined;
@@ -180,6 +190,24 @@ class LimitsStatus {
     if (this.error) { tooltip.appendMarkdown('\n\n'); tooltip.appendText(this.error); }
     this.item.tooltip = tooltip;
     this.item.accessibilityInformation = { label: this.item.text.replace(/\$\([^)]*\)/g, '') };
+  }
+
+  /** Check cached reset times; no extra HTTP request is needed.
+   * @param {number} now */
+  checkResetAnimation(now) {
+    if (!this.limits || !vscode.window.state.focused) return;
+    const config = vscode.workspace.getConfiguration('codexLimits');
+    if (!config.get('animationEnabled', true)) return;
+    const minutes = config.get('resetAnimationMinutes', 30);
+    if (!Number.isFinite(minutes) || minutes <= 0) return;
+    const eligible = /** @type {[string, import('./limits').Window|null][]} */
+      ([['fiveHour', this.limits.fiveHour], ['weekly', this.limits.weekly]])
+      .filter(([key, window]) => window?.resetsAt != null && window.resetsAt * 1000 > now
+        && window.resetsAt * 1000 - now <= minutes * 60000
+        && this.warnedResets.get(key) !== window.resetsAt);
+    if (eligible.length && playResetAnimation()) {
+      for (const [key, window] of eligible) this.warnedResets.set(key, /** @type {number} */ (window?.resetsAt));
+    }
   }
 
   dispose() {
@@ -194,18 +222,22 @@ class LimitsStatus {
 
 /** @param {import('vscode').ExtensionContext} context */
 function activate(context) {
+  const car = initializeCarAnimation();
   const status = new LimitsStatus();
-  context.subscriptions.push(status,
+  context.subscriptions.push(status, car,
     vscode.commands.registerCommand('codexLimits.refresh', () => status.refresh(true)),
     vscode.commands.registerCommand('codexLimits.openCodex', () => vscode.commands.executeCommand('chatgpt.openSidebar')),
     vscode.commands.registerCommand('codexLimits.showOutput', () => status.output.show()),
+    vscode.commands.registerCommand('codexLimits.testDriveCar', () => playResetAnimation()),
     vscode.workspace.onDidChangeConfiguration(event => {
       if (!event.affectsConfiguration('codexLimits')) return;
+      if (event.affectsConfiguration('codexLimits.animationEnabled')) car.configure();
       if (event.affectsConfiguration('codexLimits.codexHome') || event.affectsConfiguration('codexLimits.refreshIntervalSeconds')) status.configure();
       else status.render();
     }),
     vscode.window.onDidChangeWindowState(state => { if (state.focused) void status.refresh(); }),
   );
+  return { driveCar, playResetAnimation };
 }
 
-module.exports = { activate };
+module.exports = { activate, driveCar, playResetAnimation };

@@ -1,5 +1,40 @@
 # Changelog
 
+## 0.2.18
+
+- Shorten the expected remaining percentage beside tooltip pace messages to just the percentage in brackets.
+
+## 0.2.17
+
+- Show expected quota remaining in brackets beside each tooltip usage pace message, based on the time remaining in that window.
+
+## 0.2.16
+
+- Add animationEnabled to turn off all editor animations, including manual tests and programmatic triggers. Disabling it immediately clears any running animation and its timers.
+
+## 0.2.15
+
+- Anchor the shaking bell to the middle visible code line instead of fixed viewport coordinates, fixing its disappearance in scrolled editors.
+- Cap its horizontal offset to keep long code lines from placing the bell far off-screen.
+
+## 0.2.14
+
+- Add a shaking bell and three simultaneous cars lasting six seconds, using editor decorations.
+- Trigger once per reset when either window is within a configurable threshold, defaulting to 30 minutes; zero disables automatic warnings.
+- Keep the manual Test Drive Car command as a full-animation preview and remove the minute timer.
+- Avoid replaying on polling or token renewal; defer warnings while unfocused, without an editor, or using stale data.
+
+## 0.2.13
+
+- Make automatic and manual test car animations last six seconds.
+
+## 0.2.12
+
+- Add reusable driveCar(duration = 3000) using a native text decoration with a CSS positioning workaround to drive across the actual code editor.
+- Add a temporary Test Drive Car command and every-minute test timer, configurable with carAnimationTestEnabled.
+- Replace overlapping animations and remove decorations on completion, editor switching, scrolling, editing, focus loss, and extension unload.
+- Verify rendering in an isolated VS Code 1.141.0 window and confirm document text, version, dirty state, and selection are unchanged.
+
 ## 0.2.10
 
 - Add separate configurable under-usage and over-usage thresholds, defaulting to 10 percentage points each for both windows. Boundary values remain on track.

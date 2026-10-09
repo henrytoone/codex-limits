@@ -15,10 +15,38 @@ A separate **Banked resets** block shows the available reset count and local exp
 ## Install
 
 1. Install the official **Codex – OpenAI's coding agent** extension (`openai.chatgpt`) and sign in with ChatGPT.
-2. In VS Code, run **Extensions: Install from VSIX…** from the Command Palette and select `codex-limits-0.2.10.vsix` from this folder. This upgrades earlier versions if already installed.
+2. In VS Code, run **Extensions: Install from VSIX…** from the Command Palette and select `codex-limits-0.2.18.vsix` from this folder. This upgrades earlier versions if already installed.
 3. Reload the VS Code window if prompted. The status bar appears automatically.
 
 The package is for local installation; it has not been published to the Marketplace.
+
+The tooltip shows the expected quota remaining beside each usage pace message, for example **on track (50%)**. This is the percentage of time remaining in that window, assuming usage is spread evenly over the window.
+
+## Car animation
+
+A car drives left to right over the current code editor using `createTextEditorDecorationType` and `setDecorations`. It opens no tab or webview and never edits the document, selection, undo history, or scroll position. The default animation lasts three seconds. A repeated trigger replaces the current animation. Switching editors, scrolling, editing, losing window focus, or unloading the extension cancels it and releases its decoration and timers.
+
+When either usage window has **30 minutes or less until reset**, a shaking bell appears over the middle visible code line with **three cars driving across together for six seconds**. Configure `codexLimits.resetAnimationMinutes` to change the threshold; `0` disables automatic warnings. Each window triggers once per reset while this extension is active. If both qualify together, they share one animation. Warnings use fresh cached reset times, checked every 15 seconds, and wait for a focused, visible code editor. They do not make extra HTTP requests.
+
+Set `codexLimits.animationEnabled` to `false` to **turn off all animations**. This immediately removes any running animation and blocks automatic, manual, and programmatic triggers. The default is `true`.
+
+Run **Codex Limits: Test Drive Car** from the Command Palette to preview the full bell-and-three-car animation immediately. The minute test timer has been removed. The command does not require usage data.
+
+Other features in this extension can call:
+
+```js
+const { driveCar, playResetAnimation } = require('./car');
+
+driveCar();       // Three seconds.
+driveCar(5000);   // Five seconds.
+playResetAnimation(); // Shaking bell and three cars, six seconds.
+```
+
+Extension activation initializes the animation service and also returns `{ driveCar, playResetAnimation }` as its exports. The trigger returns `false` when animations are disabled, no suitable editor is available, the duration is invalid, or the service has been disposed. It can be called programmatically without window focus; automatic reset warnings wait until VS Code is focused.
+
+**Limitations:** VS Code does not expose an unrestricted floating overlay API or the editor's pixel width. This implementation anchors a decoration to the middle of the largest visible code block, uses additional CSS declarations through `textDecoration` for absolute positioning, and updates its horizontal margin about 30 times per second. The CSS workaround is not a supported positioning contract and may behave differently in future releases, wrapped/folded editors, or different layouts. Travel distance uses window viewport units, so narrow/split editors clip the cars before the six-second animation ends. The bell is anchored to the middle visible code line, with its horizontal offset capped at 240 pixels so long lines do not push it far off-screen. Its placement follows the code rather than the exact screen centre; very narrow editors or horizontal scrolling can still clip decorations. In a short or empty document its vertical position follows the available code lines. Frame rate depends on extension-host load.
+
+The workaround affects only the temporary decoration. It does not inject JavaScript into the workbench, patch installation files, load a custom stylesheet, or require another extension. Actual bell and three-car rendering was verified on macOS in VS Code 1.141.0 using an isolated editor fixture; document text, version, dirty state, and selection were unchanged after completion. See [DecorationRenderOptions](https://code.visualstudio.com/api/references/vscode-api#DecorationRenderOptions) and [VS Code extension restrictions](https://code.visualstudio.com/api/extension-capabilities/overview#restrictions).
 
 ## How it connects
 
@@ -40,6 +68,8 @@ The extension runs locally, including in Remote SSH windows. If your Codex accou
 
 | Setting | Default | Purpose |
 | --- | --- | --- |
+| `codexLimits.animationEnabled` | `true` | Enable all editor animations; disabling immediately stops the current animation and blocks every trigger |
+| `codexLimits.resetAnimationMinutes` | `30` | Minutes before either window resets to play the bell and three cars; `0` disables automatic warnings |
 | `codexLimits.refreshIntervalSeconds` | `60` | Usage polling interval, between 30 and 3,600 seconds |
 | `codexLimits.showWeeklyReset` | `true` | Show the weekly countdown in the bar |
 | `codexLimits.warningThresholdPercent` | `10` | Highlight low remaining quota |
@@ -47,7 +77,7 @@ The extension runs locally, including in Remote SSH windows. If your Codex accou
 | `codexLimits.overUsageThresholdPercentagePoints` | `10` | Percentage points above elapsed time before showing over usage |
 | `codexLimits.codexHome` | empty | Absolute directory containing Codex auth.json |
 
-Commands: **Codex Limits: Refresh Usage**, **Codex Limits: Open Codex**, and **Codex Limits: Show Diagnostics**.
+Commands: **Codex Limits: Refresh Usage**, **Codex Limits: Open Codex**, **Codex Limits: Show Diagnostics**, and **Codex Limits: Test Drive Car**.
 
 Find **Codex Limits: Refresh Interval Seconds** in VS Code Settings, or set it in your user `settings.json`:
 
@@ -83,4 +113,4 @@ Press **F5** in this folder to launch an Extension Development Host with Codex L
 npm run verify:live
 ```
 
-The live check reads the saved credential file and sends one usage GET. The 38 tests exercise read-only credential access, token changes, fixed request destination, redirect rejection, HTTP errors, backoff, timeouts, cancellation, quota parsing, configurable pace thresholds and boundaries, configurable polling, banked reset expiry parsing, detail request cooldowns and status bar behavior using temporary credential fixtures and a mocked HTTPS transport.
+The live check reads the saved credential file and sends one usage GET. The 54 tests exercise read-only credential access, token changes, fixed request destination, redirect rejection, HTTP errors, backoff, timeouts, cancellation, quota parsing, configurable pace thresholds and boundaries, configurable polling, banked reset expiry parsing, detail request cooldowns, reset warning thresholds and deduplication, car animation triggers and cleanup, and status bar behavior using temporary credential fixtures and a mocked HTTPS transport.
